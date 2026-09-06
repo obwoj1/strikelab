@@ -2,8 +2,9 @@
 
 Always-current status. Readable on a phone. Updated as work lands.
 
-**Last updated:** 2026-09-05 23:05
-**Now building:** StrikeLab Studio — the web front end
+**Last updated:** 2026-09-05 23:35
+**Now building:** Phase 2 — persistence is in, next is charts and heatmaps
+**Studio:** `strikelab serve` → http://localhost:7878
 **Repo:** https://github.com/obwoj1/strikelab
 
 ---
@@ -16,7 +17,7 @@ Always-current status. Readable on a phone. Updated as work lands.
 | CLI (`demo`, `analyze`, `calibrate`) | ✅ Done |
 | YOLO backend | ✅ Wired and runs on Apple MPS |
 | Roboflow backend | ⚠️ Written, never run (no API key) |
-| **Web app** | 🔨 In progress |
+| **Web app (Studio)** | ✅ Phase 1 done, running |
 | Validated on real footage | ❌ Not yet — the main open risk |
 
 ---
@@ -30,17 +31,17 @@ leaves something that works.
 The thing that makes the CLI bearable: drag a clip in, **click the four goal
 corners** instead of typing pixel coordinates, watch it process, see results.
 
-- [ ] FastAPI app skeleton + static front end
-- [ ] Video upload, streamed to disk
-- [ ] Frame extraction for calibration
-- [ ] Click-to-calibrate the goal corners in the browser
-- [ ] Background analysis job with live progress
-- [ ] Results view: shot table + annotated video
+- [x] FastAPI app skeleton + static front end
+- [x] Video upload, streamed to disk
+- [x] Frame extraction for calibration
+- [x] Click-to-calibrate the goal corners in the browser
+- [x] Background analysis job with live progress
+- [x] Results view: shot table + annotated video
 
 ### Phase 2 — Persistence and insight
-- [ ] SQLite storage for sessions and shots
-- [ ] Session history
-- [ ] Goal-mouth placement heatmap
+- [x] SQLite storage for sessions and shots
+- [x] Session history
+- [x] Goal-mouth placement heatmap
 - [ ] Charts: speed distribution, conversion, placement over time
 
 ### Phase 3 — Product
@@ -71,6 +72,14 @@ corners** instead of typing pixel coordinates, watch it process, see results.
 ## Session log
 
 Newest first.
+
+### 2026-09-05 (Sat, later)
+- Built StrikeLab Studio: FastAPI + vanilla JS, one process.
+- Click-to-calibrate replaces typing pixel coordinates. Drag to adjust.
+- Upload streams to disk, analysis runs on a background thread, progress over SSE.
+- Results: stat tiles, goal-mouth map, zone counts, shot table, annotated video.
+- Players, share links, CSV/JSON export, and a one-tap demo session.
+- Fixed: goal map showed 1 of 5 shots (wrong axis divisor) and mobile table overflow.
 
 ### 2026-09-05 (Sat)
 - Built the engine, CLI, both detector backends, 87 tests.
