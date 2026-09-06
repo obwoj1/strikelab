@@ -190,10 +190,9 @@ class SyntheticScene:
                 _lerp(start, contact, (i + 1) / script.flight_frames)
                 for i in range(script.flight_frames)
             ]
-            rebound_to = _lerp(contact, start, 0.45)
-            back = [
-                _lerp(contact, rebound_to, (i + 1) / 8) for i in range(8)
-            ]
+            # A parried ball comes back slower than it arrived.
+            rebound_to = _lerp(contact, start, 0.30)
+            back = [_lerp(contact, rebound_to, (i + 1) / 14) for i in range(14)]
             tail = [rebound_to] * script.settle_frames
             return forward + back + tail
 
