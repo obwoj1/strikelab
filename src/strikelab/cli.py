@@ -108,6 +108,19 @@ def _build_parser() -> argparse.ArgumentParser:
     # --- backends -----------------------------------------------------
     sub.add_parser("backends", help="List detection backends and what each needs.")
 
+    # --- serve --------------------------------------------------------
+    serve = sub.add_parser("serve", help="Run StrikeLab Studio, the web interface.")
+    serve.add_argument(
+        "--host",
+        default="127.0.0.1",
+        help=(
+            "Interface to bind. Use 0.0.0.0 to reach it from a phone on the same "
+            "network. There is no authentication, so only do that on a network you trust."
+        ),
+    )
+    serve.add_argument("--port", type=int, default=7878)
+    serve.add_argument("--reload", action="store_true", help="auto-reload on code changes")
+
     return parser
 
 
@@ -394,6 +407,52 @@ def _cmd_calibrate(args: argparse.Namespace) -> int:
     return 0
 
 
+def _cmd_serve(args: argparse.Namespace) -> int:
+    try:
+        from .web.app import serve
+    except ImportError as error:
+        print(
+            f"error: the web interface needs the 'web' extra: pip install 'strikelab[web]'\n  ({error})",
+            file=sys.stderr,
+        )
+        return 2
+
+    if args.host not in {"127.0.0.1", "localhost"}:
+        print(
+            f"StrikeLab Studio is binding to {args.host}. There is no authentication, "
+            "so anyone on this network can reach it. Stop the server when you are done.\n",
+            file=sys.stderr,
+        )
+        for address in _local_addresses():
+            print(f"  On your phone:  http://{address}:{args.port}", file=sys.stderr)
+        print("", file=sys.stderr)
+
+    serve(host=args.host, port=args.port, reload=args.reload)
+    return 0
+
+
+def _local_addresses() -> list[str]:
+    """Best-effort list of this machine's LAN addresses, for the phone URL."""
+    import socket
+
+    found: set[str] = set()
+    try:
+        probe = socket.socket(socket.AF_INET, socket.SOCK_DGRAM)
+        probe.connect(("8.8.8.8", 80))
+        found.add(probe.getsockname()[0])
+        probe.close()
+    except OSError:
+        pass
+    try:
+        for info in socket.getaddrinfo(socket.gethostname(), None, socket.AF_INET):
+            address = info[4][0]
+            if not address.startswith("127."):
+                found.add(address)
+    except OSError:
+        pass
+    return sorted(found)
+
+
 def main(argv: Sequence[str] | None = None) -> int:
     parser = _build_parser()
     args = parser.parse_args(argv)
@@ -406,6 +465,8 @@ def main(argv: Sequence[str] | None = None) -> int:
         return _cmd_analyze(args)
     if args.command == "calibrate":
         return _cmd_calibrate(args)
+    if args.command == "serve":
+        return _cmd_serve(args)
 
     parser.error(f"unknown command {args.command!r}")
     return 2

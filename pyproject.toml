@@ -21,7 +21,8 @@ dependencies = ["numpy>=1.24"]
 video = ["opencv-python>=4.8"]
 yolo = ["ultralytics>=8.3", "opencv-python>=4.8"]
 roboflow = ["inference>=0.9", "opencv-python>=4.8"]
-dev = ["pytest>=8.0", "opencv-python-headless>=4.8"]
+web = ["fastapi>=0.110", "uvicorn[standard]>=0.27", "opencv-python>=4.8"]
+dev = ["pytest>=8.0", "opencv-python-headless>=4.8", "fastapi>=0.110", "uvicorn[standard]>=0.27"]
 
 [project.scripts]
 strikelab = "strikelab.cli:main"
