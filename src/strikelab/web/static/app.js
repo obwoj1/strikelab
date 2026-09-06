@@ -579,13 +579,15 @@ async function openSession(sessionId) {
     listenToJob();
     return;
   }
-  if (!session.video_path) { startNewSession(); return; }
-  if (!session.goal_corners) { goToCalibrate(); return; }
-  if (session.status !== "done" && session.status !== "cancelled" && !state.shots.length) {
-    goToAnalyse();
+  // Finished sessions go straight to results. Checked before the video, because
+  // the synthetic demo session has results but no uploaded source file.
+  if (session.status === "done" || session.status === "cancelled" || state.shots.length) {
+    renderResults();
     return;
   }
-  renderResults();
+  if (!session.video_path) { startNewSession(); return; }
+  if (!session.goal_corners) { goToCalibrate(); return; }
+  goToAnalyse();
 }
 
 function renderResults() {
@@ -687,11 +689,18 @@ function renderTiles(container, summary, shots) {
 
 /** The money view: the goal mouth seen from the pitch, with every shot on it. */
 function renderGoalMap(container, shots) {
-  const pad = 0.9;
+  // Pad wide enough that a typical miss still lands on the canvas. Anything
+  // further out is clamped to the edge and drawn hollow, so a shot is never
+  // silently invisible.
+  const pad = 2.2;
   const W = GOAL_W + pad * 2;
   const H = GOAL_H + pad * 2;
+  // Both axes divide by W so the aspect ratio is preserved: the viewBox is
+  // 100 wide and (H/W)*100 tall, and y must map into that height, not into 100.
   const sx = (x) => ((x + pad) / W) * 100;
-  const sy = (y) => ((GOAL_H - y + pad) / H) * 100;
+  const sy = (y) => ((GOAL_H - y + pad) / W) * 100;
+  const clamp = (v, lo, hi) => Math.min(hi, Math.max(lo, v));
+  const viewH = (H / W) * 100;
 
   const grid = [];
   for (let i = 1; i < 3; i += 1) {
@@ -703,18 +712,25 @@ function renderGoalMap(container, shots) {
     const point = (shot.entry || {}).goal_plane_m;
     const colour = VERDICT_COLOR[shot.verdict] || "#8b9bad";
     if (!point) return "";
-    const cx = sx(point[0]);
-    const cy = sy(point[1]);
+    const rawX = sx(point[0]);
+    const rawY = sy(point[1]);
+    const cx = clamp(rawX, 1.6, 98.4);
+    const cy = clamp(rawY, 1.6, viewH - 1.6);
+    const offCanvas = cx !== rawX || cy !== rawY;
     const inside = point[0] >= 0 && point[0] <= GOAL_W && point[1] >= 0 && point[1] <= GOAL_H;
-    return `<circle cx="${cx}" cy="${cy}" r="${inside ? 1.5 : 1.2}" fill="${colour}"
-      fill-opacity="${inside ? 0.9 : 0.55}" stroke="#0b0f14" stroke-width="0.3">
-      <title>#${shot.shot_id} ${shot.verdict} — ${Math.round(shot.peak_speed_kmh || 0)} km/h${shot.zone ? ` (${shot.zone})` : ""}</title>
+    const label = `#${shot.shot_id} ${shot.verdict} — ${Math.round(shot.peak_speed_kmh || 0)} km/h`
+      + (shot.zone ? ` (${shot.zone})` : "")
+      + (offCanvas ? " — off the chart, clamped to the edge" : "");
+    return `<circle cx="${cx}" cy="${cy}" r="${inside ? 1.5 : 1.2}"
+      fill="${offCanvas ? "none" : colour}" fill-opacity="${inside ? 0.9 : 0.6}"
+      stroke="${offCanvas ? colour : "#0b0f14"}" stroke-width="${offCanvas ? 0.7 : 0.3}">
+      <title>${escapeHtml(label)}</title>
     </circle>`;
   }).join("");
 
   container.innerHTML = `
-    <svg viewBox="0 0 100 ${(H / W) * 100}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Goal mouth placement">
-      <rect x="0" y="0" width="100" height="${(H / W) * 100}" fill="#0b0f14" rx="1"/>
+    <svg viewBox="0 0 100 ${viewH}" preserveAspectRatio="xMidYMid meet" role="img" aria-label="Goal mouth placement">
+      <rect x="0" y="0" width="100" height="${viewH}" fill="#0b0f14" rx="1"/>
       ${grid.join("")}
       <rect x="${sx(0)}" y="${sy(GOAL_H)}" width="${sx(GOAL_W) - sx(0)}" height="${sy(0) - sy(GOAL_H)}"
             fill="none" stroke="#e8eef5" stroke-width="0.7"/>
@@ -869,6 +885,23 @@ async function boot() {
 
   $("new-session-btn").onclick = startNewSession;
   $("welcome-start").onclick = startNewSession;
+
+  $("welcome-demo").onclick = async (event) => {
+    const button = event.target;
+    button.disabled = true;
+    button.textContent = "Building demo…";
+    try {
+      const session = await api("/api/demo", { method: "POST" });
+      await loadSessions();
+      await openSession(session.id);
+      toast("Demo session ready — this is real engine output on a synthetic scene.");
+    } catch (error) {
+      toast(error.message, true);
+    } finally {
+      button.disabled = false;
+      button.textContent = "See a demo session";
+    }
+  };
   $("burger").onclick = () => $("sidebar").classList.toggle("open");
 
   $("add-player-btn").onclick = async () => {
