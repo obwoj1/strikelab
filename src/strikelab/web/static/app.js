@@ -925,3 +925,13 @@ async function boot() {
 }
 
 boot();
+
+/* Register the service worker so the app can be installed to the dock or home
+   screen. Browsers only allow this on HTTPS or localhost, so over plain HTTP on
+   a LAN address it is skipped — the app still works, it just cannot be
+   "installed" from that origin. */
+if ("serviceWorker" in navigator && (location.protocol === "https:" || location.hostname === "localhost" || location.hostname === "127.0.0.1")) {
+  window.addEventListener("load", () => {
+    navigator.serviceWorker.register("/sw.js").catch(() => { /* not fatal */ });
+  });
+}

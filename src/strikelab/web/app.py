@@ -600,6 +600,16 @@ def index() -> HTMLResponse:
     return HTMLResponse((STATIC_DIR / "index.html").read_text(encoding="utf-8"))
 
 
+@app.get("/sw.js")
+def service_worker() -> FileResponse:
+    """Served from the root so its scope covers the whole app, not just /static."""
+    return FileResponse(
+        STATIC_DIR / "sw.js",
+        media_type="application/javascript",
+        headers={"Cache-Control": "no-cache", "Service-Worker-Allowed": "/"},
+    )
+
+
 @app.get("/s/{token}", response_class=HTMLResponse)
 def shared_page(token: str) -> HTMLResponse:  # noqa: ARG001 - the UI reads the token
     return HTMLResponse((STATIC_DIR / "index.html").read_text(encoding="utf-8"))
