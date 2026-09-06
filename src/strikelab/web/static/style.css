@@ -137,6 +137,7 @@ output { color: var(--fg); font-variant-numeric: tabular-nums; }
 .hero h1 { font-size: 2.1rem; line-height: 1.15; margin-bottom: .7rem; }
 .hero p { color: var(--muted); font-size: 1.02rem; margin-bottom: 1.5rem; }
 .hero-note { margin-top: 1rem; font-size: .82rem; color: var(--muted); }
+.hero-actions { display: flex; gap: .6rem; flex-wrap: wrap; }
 
 /* ── dropzone ────────────────────────────────────────────── */
 .dropzone {
@@ -204,7 +205,10 @@ output { color: var(--fg); font-variant-numeric: tabular-nums; }
 
 video { width: 100%; border-radius: 10px; background: #000; display: block; }
 
-.table-wrap { overflow-x: auto; }
+/* Grid and flex children default to min-width:auto, which lets a wide table
+   push the whole page sideways instead of scrolling inside its own box. */
+.main, .card, .results-grid > *, .analyse-grid > *, .calib-layout > * { min-width: 0; }
+.table-wrap { overflow-x: auto; max-width: 100%; -webkit-overflow-scrolling: touch; }
 table.shots { width: 100%; border-collapse: collapse; font-size: .86rem; }
 table.shots th {
   text-align: left; font-weight: 600; color: var(--muted); font-size: .74rem;
