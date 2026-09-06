@@ -468,6 +468,66 @@ def export_session(session_id: str, format: str = Query(default="json")) -> Any:
 
 
 # ----------------------------------------------------------------------
+# demo
+
+
+@app.post("/api/demo", status_code=201)
+def create_demo_session() -> dict[str, Any]:
+    """Build a fully-populated session from the scripted synthetic scene.
+
+    Runs the real engine, so the results view shows genuine output rather than
+    canned JSON. It needs no model weights, which is what makes it a sane first
+    thing to see on a machine with nothing set up.
+    """
+    from ..config import Config
+    from ..engine import ShotEngine
+    from ..render import Annotator
+    from ..render.paint import paint_frame
+    from ..sources.synthetic import SyntheticScene
+    from ..sources.video import VideoWriter
+    from ..stats import summarise
+
+    session_id = uuid.uuid4().hex[:12]
+    directory = session_dir(session_id)
+    directory.mkdir(parents=True, exist_ok=True)
+    store.create_session(session_id, "Demo session (synthetic)")
+
+    scene = SyntheticScene()
+    engine = ShotEngine(scene.calibration, config=Config(fps=30.0))
+    annotator = Annotator(scene.calibration, fps=30.0)
+    annotated = directory / "annotated.mp4"
+    writer = VideoWriter(annotated, scene.width, scene.height, 30.0)
+
+    frames = 0
+    try:
+        for scene_frame in scene.frames():
+            result = engine.process(scene_frame.detections)
+            canvas = paint_frame(scene_frame, scene.calibration, scene.width, scene.height)
+            writer.write(annotator.draw(canvas, result))
+            frames += 1
+    finally:
+        writer.close()
+    engine.finish()
+
+    shots = [shot.to_json() for shot in engine.shots]
+    store.replace_shots(session_id, shots)
+    store.update_session(
+        session_id,
+        status="done",
+        backend="scripted",
+        width=scene.width,
+        height=scene.height,
+        fps=30.0,
+        frame_count=frames,
+        video_name="synthetic.mp4",
+        annotated_path=str(annotated),
+        goal_corners=[list(p) for p in scene.calibration.corners_tl_tr_br_bl],
+        summary=summarise(engine.shots).to_json(),
+    )
+    return _require_session(session_id)
+
+
+# ----------------------------------------------------------------------
 # players
 
 
