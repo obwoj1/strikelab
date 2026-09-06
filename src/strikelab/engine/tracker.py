@@ -137,6 +137,22 @@ class BallTracker:
             return sample
 
         self._missing = 0
+
+        # A jump that implies an impossible ball speed means we have latched
+        # onto a different object. Restart the track rather than emitting a
+        # velocity spike, which would otherwise poison every downstream
+        # acceleration test.
+        last = self.last
+        if last is not None:
+            jump = math.hypot(
+                candidate[0] - last.position[0], candidate[1] - last.position[1]
+            )
+            max_jump_px = (
+                self.config.max_ball_speed_mps * self.pixels_per_metre / self.fps
+            )
+            if jump > max_jump_px:
+                self.reset()
+
         alpha = self.config.position_alpha
         if self._smoothed is None:
             smoothed = candidate

@@ -20,6 +20,11 @@ class TrackerConfig:
     max_association_dist_goal_widths: float = 0.55
     # How many frames the ball may go missing before the track is dropped.
     max_gap_frames: int = 12
+    # No struck ball goes faster than this. A single-frame displacement that
+    # implies more is not our ball moving, it is the track jumping to a
+    # different object, so the track restarts rather than reporting a
+    # nonsense velocity. (The fastest recorded shot is around 58 m/s.)
+    max_ball_speed_mps: float = 55.0
     # Exponential smoothing on position. 1.0 disables smoothing.
     position_alpha: float = 0.65
     # Velocity is averaged over this many frames to survive one-frame jitter.

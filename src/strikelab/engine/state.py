@@ -18,6 +18,7 @@ goalward sustain), and clearances (no goalward component).
 from __future__ import annotations
 
 import math
+from collections import deque
 from dataclasses import dataclass, field
 from enum import Enum
 from typing import Sequence
@@ -144,7 +145,10 @@ class ShotStateMachine:
         self._shot_counter = 0
 
         self._last_contact: tuple[int, str, Point] | None = None
-        self._pre_contact_speed = 0.0
+        # A window rather than a running average: the baseline has to survive a
+        # single bad frame, because one mis-associated detection would otherwise
+        # set an acceleration bar no real shot could clear.
+        self._baseline_window: deque[float] = deque(maxlen=12)
         self._release_streak = 0
         self._stop_streak = 0
 
@@ -196,6 +200,16 @@ class ShotStateMachine:
         dy = facts.position[1] - origin[1]  # type: ignore[index]
         return dx * direction[0] + dy * direction[1]  # type: ignore[index]
 
+    def _baseline_speed(self) -> float:
+        """Median pre-contact ball speed, so one outlier frame cannot set the bar."""
+        if not self._baseline_window:
+            return 0.0
+        window = sorted(self._baseline_window)
+        middle = len(window) // 2
+        if len(window) % 2:
+            return window[middle]
+        return (window[middle - 1] + window[middle]) / 2.0
+
     def _nearest(self, point: Point, candidates: Sequence[Point]) -> float | None:
         if not candidates:
             return None
@@ -206,15 +220,16 @@ class ShotStateMachine:
 
     def update(self, facts: FrameFacts) -> Shot | None:
         """Advance one frame. Returns a Shot on the frame a shot resolves."""
+        if self.state is State.IDLE:
+            # Track a rolling baseline so we know what "sped up" means.
+            self._baseline_window.append(facts.speed_mps)
+
         if facts.contact is not None:
             self._last_contact = (facts.frame_index, facts.contact[0], facts.contact[1])
             if self.state is State.IDLE:
-                self._pre_contact_speed = max(self._pre_contact_speed, facts.speed_mps)
                 self.state = State.ARMED
 
         if self.state is State.IDLE:
-            # Track a rolling baseline so we know what "sped up" means.
-            self._pre_contact_speed = 0.7 * self._pre_contact_speed + 0.3 * facts.speed_mps
             return None
 
         if self.state is State.ARMED:
@@ -235,7 +250,7 @@ class ShotStateMachine:
             self._release_streak = 0
             return
 
-        baseline = max(self._pre_contact_speed, 0.5)
+        baseline = max(self._baseline_speed(), 0.5)
         fast_enough = facts.speed_mps >= self.config.release_speed_mps
         accelerated = facts.speed_mps >= baseline * self.config.release_accel_ratio
         goalward = self._goalward(facts) >= self.config.min_goalward_cosine
@@ -474,7 +489,7 @@ class ShotStateMachine:
 
         self.state = State.IDLE
         self._last_contact = None
-        self._pre_contact_speed = 0.0
+        self._baseline_window.clear()
         self._stop_streak = 0
         self._trace = []
         self._speed_history = []
