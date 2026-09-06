@@ -1,0 +1,269 @@
+<!doctype html>
+<html lang="en">
+<head>
+<meta charset="utf-8" />
+<meta name="viewport" content="width=device-width, initial-scale=1, viewport-fit=cover" />
+<title>StrikeLab Studio</title>
+<link rel="stylesheet" href="/static/style.css" />
+<link rel="icon" href="data:image/svg+xml,<svg xmlns='http://www.w3.org/2000/svg' viewBox='0 0 32 32'><text y='26' font-size='26'>⚽</text></svg>" />
+</head>
+<body>
+
+<header class="topbar">
+  <button class="burger" id="burger" aria-label="Toggle menu">☰</button>
+  <div class="brand"><span class="dot"></span> StrikeLab <em>Studio</em></div>
+  <div class="grow"></div>
+  <button class="btn btn-primary" id="new-session-btn">New session</button>
+</header>
+
+<div class="shell">
+  <aside class="sidebar" id="sidebar">
+    <div class="side-section">
+      <div class="side-head">
+        <h2>Sessions</h2>
+        <span class="count" id="session-count">0</span>
+      </div>
+      <ul class="session-list" id="session-list"></ul>
+    </div>
+    <div class="side-section">
+      <div class="side-head">
+        <h2>Players</h2>
+        <button class="link-btn" id="add-player-btn">+ add</button>
+      </div>
+      <ul class="player-list" id="player-list"></ul>
+    </div>
+  </aside>
+
+  <main class="main" id="main">
+
+    <!-- ── Empty / welcome ─────────────────────────────────────── -->
+    <section class="view" id="view-welcome">
+      <div class="hero">
+        <h1>Shot analysis from a phone video</h1>
+        <p>
+          Upload footage of someone shooting at a goal. Click the four corners of the
+          goal mouth. StrikeLab finds every shot and tells you what happened to it —
+          the verdict, how hard it was struck, and exactly where it crossed the mouth.
+        </p>
+        <button class="btn btn-primary btn-lg" id="welcome-start">Start a session</button>
+        <div class="hero-note" id="backend-note"></div>
+      </div>
+    </section>
+
+    <!-- ── Upload ──────────────────────────────────────────────── -->
+    <section class="view" id="view-upload" hidden>
+      <div class="steps" data-step="1"></div>
+      <h1 id="upload-title">New session</h1>
+      <p class="lede">Pick a clip. It is copied into <code>data/studio</code> and never leaves this machine.</p>
+
+      <label class="field">
+        <span>Session name</span>
+        <input type="text" id="session-name" placeholder="Friday finishing" />
+      </label>
+
+      <div class="dropzone" id="dropzone">
+        <input type="file" id="file-input" accept="video/*" hidden />
+        <div class="dz-inner">
+          <div class="dz-icon">▲</div>
+          <p><strong>Drop a video here</strong></p>
+          <p class="muted">mp4 · mov · mkv · webm · m4v · avi · ts</p>
+          <button class="btn" id="choose-file">Choose file</button>
+        </div>
+      </div>
+
+      <div class="progress-wrap" id="upload-progress" hidden>
+        <div class="progress"><div class="bar" id="upload-bar"></div></div>
+        <div class="progress-label" id="upload-label">Uploading…</div>
+      </div>
+    </section>
+
+    <!-- ── Calibrate ───────────────────────────────────────────── -->
+    <section class="view" id="view-calibrate" hidden>
+      <div class="steps" data-step="2"></div>
+      <h1>Mark the goal</h1>
+      <p class="lede">
+        Click the <strong>four corners of the goal mouth</strong> — both ends of the
+        crossbar, and where each post meets the ground. Order does not matter.
+        Drag any point to nudge it.
+      </p>
+
+      <div class="calib-layout">
+        <div class="calib-stage">
+          <div class="canvas-wrap">
+            <canvas id="calib-canvas"></canvas>
+          </div>
+          <div class="calib-controls">
+            <label class="scrub">
+              <span>Frame</span>
+              <input type="range" id="frame-slider" min="0" max="0" value="0" />
+              <output id="frame-out">0</output>
+            </label>
+            <button class="btn" id="reset-corners">Clear points</button>
+          </div>
+        </div>
+
+        <div class="calib-side">
+          <div class="card">
+            <h3>Goal corners</h3>
+            <ol class="corner-list" id="corner-list">
+              <li class="pending">Corner 1</li>
+              <li class="pending">Corner 2</li>
+              <li class="pending">Corner 3</li>
+              <li class="pending">Corner 4</li>
+            </ol>
+            <div class="hint" id="calib-hint">Click the first corner.</div>
+          </div>
+
+          <div class="card">
+            <h3>Ground reference <span class="tag">optional</span></h3>
+            <p class="muted small">
+              Adds real shot distance and angle. Without it those stay blank and the
+              quality score falls back to a stated 16 m prior.
+            </p>
+            <label class="field">
+              <span>Marking</span>
+              <select id="ground-preset">
+                <option value="six-yard-box">Six-yard box</option>
+                <option value="penalty-area">Penalty area</option>
+              </select>
+            </label>
+            <button class="btn btn-sm" id="ground-toggle">Mark 4 ground points</button>
+            <ol class="corner-list small" id="ground-list" hidden>
+              <li class="pending">Near left</li>
+              <li class="pending">Near right</li>
+              <li class="pending">Far right</li>
+              <li class="pending">Far left</li>
+            </ol>
+          </div>
+
+          <button class="btn btn-primary btn-lg full" id="calib-continue" disabled>
+            Continue
+          </button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Analyse ─────────────────────────────────────────────── -->
+    <section class="view" id="view-analyse" hidden>
+      <div class="steps" data-step="3"></div>
+      <h1>Analyse</h1>
+
+      <div class="analyse-grid">
+        <div class="card">
+          <h3>Detector</h3>
+          <div id="backend-options" class="radio-set"></div>
+          <label class="field">
+            <span>Detection confidence <output id="conf-out">0.25</output></span>
+            <input type="range" id="confidence" min="0.05" max="0.8" step="0.05" value="0.25" />
+          </label>
+          <label class="check">
+            <input type="checkbox" id="write-video" checked />
+            <span>Render the annotated video (slower)</span>
+          </label>
+        </div>
+
+        <div class="card">
+          <h3>Shot sensitivity</h3>
+          <p class="muted small">
+            Defaults are reasoned, not tuned on real footage. If shots are missed,
+            lower the speed floor. If passes register as shots, raise it.
+          </p>
+          <label class="field">
+            <span>Minimum shot speed <output id="rs-out">7.0</output> m/s</span>
+            <input type="range" id="release-speed" min="2" max="20" step="0.5" value="7" />
+          </label>
+          <label class="field">
+            <span>Speed-up vs a pass <output id="ra-out">1.8</output>×</span>
+            <input type="range" id="release-accel" min="1.1" max="4" step="0.1" value="1.8" />
+          </label>
+          <label class="field">
+            <span>Foot contact radius <output id="cr-out">2.6</output> ball widths</span>
+            <input type="range" id="contact-radius" min="1" max="6" step="0.2" value="2.6" />
+          </label>
+          <button class="link-btn" id="reset-thresholds">Reset to defaults</button>
+        </div>
+      </div>
+
+      <button class="btn btn-primary btn-lg" id="start-analysis">Run analysis</button>
+
+      <div class="progress-wrap" id="analysis-progress" hidden>
+        <div class="progress"><div class="bar" id="analysis-bar"></div></div>
+        <div class="progress-row">
+          <span class="progress-label" id="analysis-label">Starting…</span>
+          <button class="btn btn-sm btn-ghost" id="cancel-analysis">Cancel</button>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Results ─────────────────────────────────────────────── -->
+    <section class="view" id="view-results" hidden>
+      <div class="results-head">
+        <div>
+          <h1 id="results-title">Session</h1>
+          <p class="lede" id="results-sub"></p>
+        </div>
+        <div class="results-actions" id="results-actions"></div>
+      </div>
+
+      <div class="tiles" id="tiles"></div>
+
+      <div class="results-grid">
+        <div class="card">
+          <h3>Where the shots went</h3>
+          <p class="muted small">Looking at the goal from the pitch. Each dot is one shot.</p>
+          <div id="goalmap"></div>
+          <div class="legend" id="goalmap-legend"></div>
+        </div>
+        <div class="card">
+          <h3>Placement count</h3>
+          <p class="muted small">On-target shots by zone of the goal.</p>
+          <div id="zonegrid"></div>
+        </div>
+      </div>
+
+      <div class="card" id="video-card" hidden>
+        <h3>Annotated video</h3>
+        <video id="result-video" controls preload="metadata"></video>
+      </div>
+
+      <div class="card">
+        <h3>Shots</h3>
+        <div class="table-wrap">
+          <table class="shots" id="shot-table">
+            <thead>
+              <tr>
+                <th>#</th><th>Verdict</th><th>Speed</th><th>Placement</th>
+                <th>Quality</th><th>Distance</th><th>Confidence</th><th>Note</th>
+              </tr>
+            </thead>
+            <tbody></tbody>
+          </table>
+        </div>
+      </div>
+    </section>
+
+    <!-- ── Player profile ──────────────────────────────────────── -->
+    <section class="view" id="view-player" hidden>
+      <h1 id="player-title">Player</h1>
+      <p class="lede" id="player-sub"></p>
+      <div class="tiles" id="player-tiles"></div>
+      <div class="results-grid">
+        <div class="card">
+          <h3>Placement across all sessions</h3>
+          <div id="player-goalmap"></div>
+        </div>
+        <div class="card">
+          <h3>Conversion by session</h3>
+          <div id="player-trend"></div>
+        </div>
+      </div>
+    </section>
+
+  </main>
+</div>
+
+<div class="toast" id="toast" hidden></div>
+
+<script src="/static/app.js"></script>
+</body>
+</html>
