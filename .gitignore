@@ -11,3 +11,7 @@ out/
 !assets/*.mp4
 .env
 .DS_Store
+
+# Downloaded model weights
+*.pt
+*.onnx
