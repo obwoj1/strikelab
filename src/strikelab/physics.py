@@ -200,7 +200,9 @@ def shot_quality(
     # Angle: 0 at no visible goal, saturating around 60 degrees.
     angle_term = min(1.0, used_angle / 55.0)
 
-    placement_term = ZONE_DIFFICULTY.get(zone or "", 1.0) if on_target else 0.55
+    # A shot that missed the target had no placement to reward. The penalty
+    # sits clearly below the easiest on-target zone rather than tying with it.
+    placement_term = ZONE_DIFFICULTY.get(zone or "", 1.0) if on_target else 0.40
 
     if speed_mps is None:
         speed_term = 1.0
